@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex image generation relay jobs",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["id", "mode", "prompt_file", "reference_images", "output_dir"],
+    "properties": {
+      "id": { "type": "string", "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$" },
+      "mode": { "enum": ["generate", "edit"] },
+      "prompt_file": { "type": "string", "minLength": 1 },
+      "output_dir": { "type": "string", "minLength": 1 },
+      "reference_images": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["path", "role"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "role": { "type": "string", "minLength": 1 },
+            "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "allOf": [
+      {
+        "if": { "properties": { "mode": { "const": "edit" } } },
+        "then": {
+          "properties": {
+            "reference_images": {
+              "contains": { "properties": { "role": { "const": "edit_target" } }, "required": ["role"] }
+            }
+          }
+        }
+      }
+    ],
+    "additionalProperties": false
+  }
+}
