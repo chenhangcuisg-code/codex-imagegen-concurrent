@@ -142,11 +142,13 @@ export async function runBatch(input, options) {
       const receiptFile = path.join(job.directory, 'receipt.json');
       try {
         const existing = JSON.parse(fs.readFileSync(receiptFile, 'utf8'));
-        const bytes = fs.readFileSync(existing.output_png);
+        const savedOutput = path.resolve(options.root, existing.output_png);
+        const savedAttempt = path.resolve(options.root, existing.attempt);
+        const bytes = fs.readFileSync(savedOutput);
         validatePng(bytes);
-        const savedEvidence = imageToolEvidence(path.join(existing.attempt, 'events.jsonl'));
+        const savedEvidence = imageToolEvidence(path.join(savedAttempt, 'events.jsonl'));
         if (savedEvidence.failed || (existing.generation_evidence === 'completed_image_tool_event' && !savedEvidence.completed)) throw Error('Previous tool evidence is invalid');
-        if (existing.status === 'generated' && existing.fingerprint === job.fingerprint && existing.png_sha256 === sha(bytes)) { results[index] = { ...existing, skipped: true }; continue; }
+        if (existing.status === 'generated' && existing.fingerprint === job.fingerprint && existing.png_sha256 === sha(bytes)) { results[index] = { ...existing, output_png: savedOutput, attempt: savedAttempt, skipped: true }; continue; }
       } catch { /* Missing, failed or tampered receipt is resumable. */ }
       const attempt = path.join(job.directory, 'attempts', `${Date.now()}-${crypto.randomUUID()}`);
       fs.mkdirSync(attempt, { recursive: true });

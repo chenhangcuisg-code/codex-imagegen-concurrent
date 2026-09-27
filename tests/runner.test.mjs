@@ -46,6 +46,20 @@ test('resume verifies output hash and starts no workers for matching generated i
   const changed = await runBatch(jobs, options); assert.notEqual(changed[0].output_png, first[0].output_png); assert.ok(fs.existsSync(first[0].output_png));
 });
 
+test('copied project resumes relative receipts on another root without generation', async t => {
+  const { root, options } = fixture(t), jobs = [job(root, 'portable', 'portable image')];
+  const [first] = await runBatch(jobs, options);
+  const receiptFile = path.join(path.dirname(first.output_png), 'receipt.json');
+  fs.writeFileSync(receiptFile, JSON.stringify({ ...first, output_png: path.relative(root, first.output_png), attempt: path.relative(root, first.attempt) }));
+  const moved = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-relay-moved-'));
+  t.after(() => fs.rmSync(moved, { recursive: true, force: true }));
+  fs.cpSync(root, moved, { recursive: true });
+  const [resumed] = await runBatch(jobs, { ...options, root: moved });
+  assert.equal(resumed.skipped, true);
+  assert.ok(resumed.output_png.startsWith(moved));
+  assert.equal(calls(moved).length, 1);
+});
+
 test('false PNGs, absent tool evidence, failed/nonzero workers stay failed while other jobs finish', async t => {
   const { root, options } = fixture(t);
   const results = await runBatch(['FALSE_PNG', 'NO_TOOL_EVENT', 'FAIL_JOB', 'NONZERO_EXIT', 'ordinary'].map((p, i) => job(root, `job-${i}`, p)), options);
